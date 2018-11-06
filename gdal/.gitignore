@@ -1,0 +1,4 @@
+/build
+/libs/gdal.jar
+/src/main/cpp
+/src/main/jniLibs
