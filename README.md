@@ -1,8 +1,18 @@
 # GDAL
 Building GDAL as a *.JAR for android
 
+# Requires
+- libtool
+- other?
+
 # How TO...
-Clone the project and open it with Android Studio 3.0+
+Clone the project, including submodules:
+
+`git clone --recurse-submodules https://github.com/paamand/GDAL.git`
+
+Then open it with Android Studio 3.0+ and select build variant 'install'.
+
+If gradle sync fails, comment out line 18-24 of GDAL/gdal/gdal.gradle and retry.
 
 Alternatively the project can be build from command line with gradlew (https://developer.android.com/studio/build/building-cmdline).
 
