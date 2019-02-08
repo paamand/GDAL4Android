@@ -22,7 +22,7 @@ make
 make install
 mkdir -p $APP_ROOT/src/main/jniLibs/armeabi-v7a
 cp $BUILDDIR/arm/lib/libgdal.so $APP_ROOT/src/main/jniLibs/armeabi-v7a/
-mkdir -p $APP_ROOT/src/main/cpp/include
+mkdir $APP_ROOT/src/main/cpp
 cp -a $BUILDDIR/arm/include $APP_ROOT/src/main/cpp/include
 
 # SWIG, ARM
@@ -35,6 +35,7 @@ make ANDROID=yes
 # Make install may produce lint java error (ColorTable). The cmd below overrules it.
 $GDALDIR/libtool --mode=install $GDALDIR/install-sh -c lib*jni.la $BUILDDIR/arm/lib
 cp $BUILDDIR/arm/lib/lib*jni.so $APP_ROOT/src/main/jniLibs/armeabi-v7a/
+mkdir $APP_ROOT/libs
 cp gdal.jar $APP_ROOT/libs/
 #cp -r org $APP_ROOT/src/main/java/
 cp *_wrap.cpp $APP_ROOT/src/main/cpp/
