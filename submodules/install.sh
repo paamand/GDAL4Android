@@ -7,6 +7,8 @@ export GDALDIR=$APP_ROOT/../submodules/gdal/gdal
 export PROJDIR=$APP_ROOT/../submodules/proj4
 export BUILDDIR=$APP_ROOT/../submodules/build
 
+echo "APP_ROOT" $APP_ROOT
+
 ######## ARM #########
 $NDK_ROOT/build/tools/make-standalone-toolchain.sh --platform=android-$MIN_SDK_VERSION --install-dir=$BUILDDIR/toolchain-$MIN_SDK_VERSION-arm --stl=libc++ --force
 export PATH=$BUILDDIR/toolchain-$MIN_SDK_VERSION-arm/bin:$PATH
@@ -20,6 +22,7 @@ make
 make install
 mkdir -p $APP_ROOT/src/main/jniLibs/armeabi-v7a
 cp $BUILDDIR/arm/lib/libgdal.so $APP_ROOT/src/main/jniLibs/armeabi-v7a/
+mkdir -p $APP_ROOT/src/main/cpp/include
 cp -a $BUILDDIR/arm/include $APP_ROOT/src/main/cpp/include
 
 # SWIG, ARM
