@@ -1,20 +1,19 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 28
 
     defaultConfig {
-        minSdkVersion 19
-        targetSdkVersion 26
+        minSdkVersion 21
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
 
-        //testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-
         ndk {
-            abiFilters 'armeabi-v7a', 'x86'
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
             moduleName "gdal"
         }
+
         externalNativeBuild {
             cmake {
                 //cppFlags "-std=c++11"
@@ -29,18 +28,22 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 
         }
-        install {
-            task installFromSource(type: Exec) {
-                def ndkDir = android.ndkDirectory
-                def minSdkVer = defaultConfig.minSdkVersion.apiLevel
-                commandLine 'sh', '../submodules/install.sh', "$ndkDir", "$minSdkVer"
-            }
-            android.libraryVariants.all { v ->
-                if (v.buildType.name == "install") {
-                    preBuild.dependsOn installFromSource
-                }
-            }
-        }
+
+//        install {
+//            task installFromSource(type: Exec) {
+//                def ndkDir = android.ndkDirectory
+//                def minSdkVer = defaultConfig.minSdkVersion.apiLevel
+//                //commandLine 'sh', '../submodules/install.sh', "$ndkDir", "$minSdkVer"
+//                commandLine './../submodules/install.sh', "$ndkDir", "$minSdkVer"
+//            }
+//
+//            android.libraryVariants.all { variant ->
+//                if (variant.buildType.name == "install") {
+//                    //preBuild.dependsOn installFromSource
+//                    preBuild.dependsOn ("myCustomTask${variant.name.capitalize()}")
+//                }
+//            }
+//        }
     }
     externalNativeBuild {
         cmake {
@@ -51,13 +54,5 @@ android {
 }
 
 dependencies {
-
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-
-    /*
-    implementation 'com.android.support:appcompat-v7:26.1.0'
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.1'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-    */
 }

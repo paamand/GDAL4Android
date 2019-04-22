@@ -1,85 +1,95 @@
-#!/bin/sh
+#!/bin/bash
 export NDK_ROOT=$1
 export MIN_SDK_VERSION=$2
 export APP_ROOT=$(pwd)
-
+export HOST_TAG=linux-x86_64
 export GDALDIR=$APP_ROOT/../submodules/gdal/gdal
 export PROJDIR=$APP_ROOT/../submodules/proj4
 export BUILDDIR=$APP_ROOT/../submodules/build
 
-echo "APP_ROOT" $APP_ROOT
+# https://developer.android.com/ndk/guides/other_build_systems
+# https://developer.android.com/ndk/guides/standalone_toolchain
+# https://developer.android.com/ndk/guides/abis
 
-######## ARM #########
-$NDK_ROOT/build/tools/make-standalone-toolchain.sh --platform=android-$MIN_SDK_VERSION --install-dir=$BUILDDIR/toolchain-$MIN_SDK_VERSION-arm --stl=libc++ --force
-export PATH=$BUILDDIR/toolchain-$MIN_SDK_VERSION-arm/bin:$PATH
-
-### GDAL, ARM ###
+#echo "APP_ROOT" $APP_ROOT
 cd $GDALDIR
-CC="arm-linux-androideabi-clang" CXX="arm-linux-androideabi-clang++" CFLAGS="-mthumb" CXXFLAGS="-mthumb" LIBS="-lstdc++" ./configure --host=arm-linux-androideabi --with-libz=internal --prefix=$BUILDDIR/arm --with-threads
-#--without-gif
-make clean
-make
-make install
-mkdir -p $APP_ROOT/src/main/jniLibs/armeabi-v7a
-cp $BUILDDIR/arm/lib/libgdal.so $APP_ROOT/src/main/jniLibs/armeabi-v7a/
-mkdir $APP_ROOT/src/main/cpp
-cp -a $BUILDDIR/arm/include $APP_ROOT/src/main/cpp/include
 
-# SWIG, ARM
-cd swig/java
-# Delete GDALtest because it does not support Android
-rm apps/GDALtest.java
-make clean
-make ANDROID=yes
-#make install
-# Make install may produce lint java error (ColorTable). The cmd below overrules it.
-$GDALDIR/libtool --mode=install $GDALDIR/install-sh -c lib*jni.la $BUILDDIR/arm/lib
-cp $BUILDDIR/arm/lib/lib*jni.so $APP_ROOT/src/main/jniLibs/armeabi-v7a/
+# Mods to GDAL for Android compatibility
+rm swig/java/apps/GDALtest.java # GDALtest.java did not support Android
+
+export TOOLCHAIN=$NDK_ROOT/toolchains/llvm/prebuilt/$HOST_TAG
+
+ABIs=("x86" "x86_64" "armeabi-v7a" "arm64-v8a")
+TRIPLEs=("i686-linux-android" "x86_64-linux-android" "armv7a-linux-androideabi" "aarch64-linux-android")
+for i in 0 1 2 3 # For each ABI
+do
+    export ABI=${ABIs[$i]}
+    export TRIPLE=${TRIPLEs[$i]}
+
+    export CFLAGS=""
+    export CXXFLAGS="-stdlib=libc++"
+    #export LDFLAGS="-stdlib=libc++" #"-static-libstdc++"
+    #export LIBS="-lstdc++"
+
+    export AR=$TOOLCHAIN/bin/$TRIPLE-ar
+    export AS=$TOOLCHAIN/bin/$TRIPLE-as
+    export LD=$TOOLCHAIN/bin/$TRIPLE-ld
+    #export STRIP=$TOOLCHAIN/bin/$TRIPLE-strip
+    export CC=$TOOLCHAIN/bin/$TRIPLE$MIN_SDK_VERSION-clang
+    export CXX=$TOOLCHAIN/bin/$TRIPLE$MIN_SDK_VERSION-clang++
+
+    if [ $ABI = "armeabi-v7a" ] # For 32-bit ARM, the compiler is prefixed with armv7a-linux-androideabi, but the binutils tools are prefixed with arm-linux-androideabi.
+    then
+        export AR=$TOOLCHAIN/bin/arm-linux-androideabi-ar
+        export AS=$TOOLCHAIN/bin/arm-linux-androideabi-as
+        export LD=$TOOLCHAIN/bin/arm-linux-androideabi-ld
+        #export STRIP=$TOOLCHAIN/bin/arm-linux-androideabi-strip
+        export CFLAGS="-mthumb"
+        export CXXFLAGS="-mthumb"
+    fi
+
+    #if [ $ABI = "arm64-v8a" ] # For some reason
+        #export LIBS=""
+        #Enable AR, AS, LD, STRIP
+
+    echo "######### " $ABI ":" $TRIPLE " ##########"
+
+    # GDAL
+    cd $GDALDIR
+    make clean
+    ./configure --host=$TRIPLE --with-libz=internal --with-curl=no --with-xml2=no --with-cpp14 --prefix=$BUILDDIR/$ABI
+    #./configure --host=$TRIPLE --with-libz=internal --with-cpp14 --prefix=$BUILDDIR/$ABI
+    make
+    make install
+    mkdir -p $APP_ROOT/src/main/jniLibs/$ABI/
+    cp $BUILDDIR/$ABI/lib/libgdal.so $APP_ROOT/src/main/jniLibs/$ABI/
+
+    # SWIG
+    cd swig/java
+    make clean
+    make ANDROID=yes
+    # Make install may produce lint java error (ColorTable). The cmd below overrules it.
+    #make install
+    $GDALDIR/libtool --mode=install $GDALDIR/install-sh -c lib*jni.la $BUILDDIR/$ABI/lib
+    cp $BUILDDIR/$ABI/lib/lib*jni.so $APP_ROOT/src/main/jniLibs/$ABI/
+
+    #PROJ.4
+    cd $PROJDIR
+    ./autogen.sh
+    ./configure --host=$TRIPLE --prefix=$BUILDDIR/$ABI
+    make clean
+    make
+    cd src
+    make install
+    cp $BUILDDIR/$ABI/lib/libproj.so $APP_ROOT/src/main/jniLibs/$ABI/
+done
+
+mkdir $APP_ROOT/src/main/cpp
+cp -a $BUILDDIR/$ABI/include $APP_ROOT/src/main/cpp/include
+
+cd $GDALDIR/swig/java
 mkdir $APP_ROOT/libs
 cp gdal.jar $APP_ROOT/libs/
 #cp -r org $APP_ROOT/src/main/java/
 cp *_wrap.cpp $APP_ROOT/src/main/cpp/
 cp *_wrap.c $APP_ROOT/src/main/cpp/
-
-# PROJ.4, ARM
-cd $PROJDIR
-./autogen.sh
-CC="arm-linux-androideabi-clang" CXX="arm-linux-androideabi-clang++" CFLAGS="-mthumb" CXXFLAGS="-mthumb" LIBS="-lstdc++" ./configure --host=arm-linux-androideabi --prefix=$BUILDDIR/arm
-make clean
-make
-cd src
-make install
-cp $BUILDDIR/arm/lib/libproj.so $APP_ROOT/src/main/jniLibs/armeabi-v7a/
-
-######### x86 ##########
-$NDK_ROOT/build/tools/make-standalone-toolchain.sh --platform=android-$MIN_SDK_VERSION --install-dir=$BUILDDIR/toolchain-$MIN_SDK_VERSION-x86 --stl=libc++ --arch=x86 --force
-export PATH=$BUILDDIR/toolchain-$MIN_SDK_VERSION-x86/bin:$PATH
-
-# GDAL, x86
-cd $GDALDIR
-sed -i -e 's/std::to_string/to_string/g' ./ogr/ogrsf_frmts/cad/libopencad/dwg/r2000.cpp #Needed due to missing std::to_string support in x86 android (replaces)
-CC="i686-linux-android-clang" CXX="i686-linux-android-clang++" LIBS="-lstdc++" ./configure --host=i686-linux-android --with-libz=internal --prefix=$BUILDDIR/x86 --with-threads
-#--without-gif
-make clean
-make
-make install
-mkdir -p $APP_ROOT/src/main/jniLibs/x86/
-cp $BUILDDIR/x86/lib/libgdal.so $APP_ROOT/src/main/jniLibs/x86/
-
-# SWIG, x86
-cd swig/java
-make clean
-make ANDROID=yes
-#make install
-$GDALDIR/libtool --mode=install $GDALDIR/install-sh -c lib*jni.la $BUILDDIR/x86/lib
-cp $BUILDDIR/x86/lib/lib*jni.so $APP_ROOT/src/main/jniLibs/x86/
-
-# PROJ.4, x86
-cd $PROJDIR
-./autogen.sh
-CC="i686-linux-android-clang" CXX="i686-linux-android-clang++" LIBS="-lstdc++" ./configure --host=i686-linux-android --prefix=$BUILDDIR/x86
-make clean
-make
-cd src
-make install
-cp $BUILDDIR/x86/lib/libproj.so $APP_ROOT/src/main/jniLibs/x86/
