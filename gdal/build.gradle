@@ -29,21 +29,20 @@ android {
 
         }
 
-//        install {
-//            task installFromSource(type: Exec) {
-//                def ndkDir = android.ndkDirectory
-//                def minSdkVer = defaultConfig.minSdkVersion.apiLevel
-//                //commandLine 'sh', '../submodules/install.sh', "$ndkDir", "$minSdkVer"
-//                commandLine './../submodules/install.sh', "$ndkDir", "$minSdkVer"
-//            }
-//
+        install {
+            task installFromSource(type: Exec) {
+                def ndkDir = android.ndkDirectory
+                def minSdkVer = defaultConfig.minSdkVersion.apiLevel
+                //commandLine 'sh', '../submodules/install.sh', "$ndkDir", "$minSdkVer"
+                commandLine './../submodules/install.sh', "$ndkDir", "$minSdkVer"
+            }
+
 //            android.libraryVariants.all { variant ->
 //                if (variant.buildType.name == "install") {
-//                    //preBuild.dependsOn installFromSource
-//                    preBuild.dependsOn ("myCustomTask${variant.name.capitalize()}")
+//                    preBuild.dependsOn installFromSource
 //                }
 //            }
-//        }
+        }
     }
     externalNativeBuild {
         cmake {

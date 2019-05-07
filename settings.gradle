@@ -1,1 +1,1 @@
-include ':gdal'
+include ':gdal', ':gdaltest'
